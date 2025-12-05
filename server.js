@@ -1,107 +1,77 @@
-// server.js
 const express = require("express");
 const path = require("path");
-
 const app = express();
 
+// 바디 파싱
 app.use(express.text());
 app.use(express.json());
 
-// public 폴더 안의 HTML, JS, CSS 정적 제공
+// 정적 파일 (public 폴더) 제공
 app.use(express.static(path.join(__dirname, "public")));
 
-// 마지막 값 (간단 문자열용)
-let lastValue = null;
+// 🔹 마지막 측정값 저장용 (대시보드가 /api/latest로 읽어가는 구조)
+let lastSample = {
+  timestamp: null,
+  postureState: 2,   // 0=GOOD, 1=BAD, 2=ABSENT(기본값)
+  distanceCm: null,
+  seatValue: null,
+  ldrValue: null,
+  warningCount: 0,
+  badDurationSec: 0
+};
 
-// 대시보드에서 사용할 "최근 센서 샘플"
-let lastSample = null;
+// postureState 갱신 함수
+function updateFromValue(raw) {
+  const num = Number(raw);
+  const posture = [0, 1, 2].includes(num) ? num : 2; // 잘못된 값이면 ABSENT 처리
+  const now = new Date().toISOString();
 
-// --------------------------------------
-// 대시보드 메인 페이지
-// --------------------------------------
+  // BAD일 때만 경고/시간 누적 (대충 5초 간격 가정)
+  if (posture === 1) {
+    lastSample.warningCount += 1;
+    lastSample.badDurationSec += 5;
+  } else {
+    lastSample.badDurationSec = 0;
+  }
+
+  lastSample.timestamp = now;
+  lastSample.postureState = posture;
+}
+
+// 🔹 메인 페이지: 우리 대시보드 HTML
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "smart_chair_dashboard.html"));
 });
 
-// 최근 데이터 조회 API (대시보드가 여기로 요청)
+// 🔹 ESP가 본문으로 보낼 때 (POST /chair, body = "1" 이런 식)
+app.post("/chair", (req, res) => {
+  console.log("📥 [POST] ESP에서 받은 데이터:", req.body);
+  if (req.body !== undefined && req.body !== "") {
+    updateFromValue(req.body);
+  }
+  res.send("OK");
+});
+
+// 🔹 ESP가 쿼리스트링으로 보낼 때 (GET /chair?value=1)
+app.get("/chair", (req, res) => {
+  const value = req.query.value;
+  console.log("📥 [GET] ESP에서 받은 데이터:", value);
+  if (value !== undefined) {
+    updateFromValue(value);
+  }
+  res.send("OK");
+});
+
+// 🔹 대시보드가 읽어가는 최신 데이터 엔드포인트
 app.get("/api/latest", (req, res) => {
-  // 아직 아무 데이터도 안 들어왔으면 기본값 리턴
-  if (!lastSample) {
-    const now = new Date().toISOString();
-    return res.json({
-      timestamp: now,
-      distanceCm: null,
-      seatValue: null,
-      ldrValue: null,
-      postureState: 2,   // ABSENT
-      warningCount: 0,
-      badDurationSec: 0
-    });
+  if (!lastSample.timestamp) {
+    lastSample.timestamp = new Date().toISOString();
   }
   res.json(lastSample);
 });
 
-// --------------------------------------
-// 헬퍼: value=0/1/2 같은 단순 값으로 샘플 만들기
-// --------------------------------------
-function makeSampleFromValue(value) {
-  const nowIso = new Date().toISOString();
-  const n = Number(value);
-  const posture = isNaN(n) ? 2 : n; // 잘못된 값이면 ABSENT로
-
-  return {
-    timestamp: nowIso,
-    distanceCm: null,     // 아직 안 쓰는 필드는 null
-    seatValue: null,
-    ldrValue: null,
-    postureState: posture,
-    warningCount: 0,
-    badDurationSec: 0
-  };
-}
-
-// --------------------------------------
-// POST /chair  : ESP가 JSON이나 텍스트로 보낼 때
-// --------------------------------------
-app.post("/chair", (req, res) => {
-  console.log("📥 [POST] ESP에서 받은 데이터:", req.body);
-  lastValue = req.body;
-
-  // 1) 단순 텍스트 "1", "2" 형식일 때
-  if (typeof req.body === "string") {
-    lastSample = makeSampleFromValue(req.body);
-  }
-  // 2) JSON 형식일 때 ({ distanceCm, seatValue, ... })
-  else if (typeof req.body === "object" && req.body !== null) {
-    const body = req.body;
-    const nowIso = new Date().toISOString();
-    lastSample = {
-      timestamp: body.timestamp || nowIso,
-      distanceCm: body.distanceCm ?? null,
-      seatValue: body.seatValue ?? null,
-      ldrValue: body.ldrValue ?? null,
-      postureState: body.postureState ?? 0,
-      warningCount: body.warningCount ?? 0,
-      badDurationSec: body.badDurationSec ?? 0
-    };
-  }
-
-  res.send("OK");
-});
-
-// --------------------------------------
-// GET /chair?value=1  : 간단 테스트용
-// --------------------------------------
-app.get("/chair", (req, res) => {
-  const value = req.query.value;
-  console.log("📥 [GET] ESP에서 받은 데이터:", value);
-  lastValue = value;
-  lastSample = makeSampleFromValue(value);
-  res.send("OK");
-});
-
+// 🔹 포트 설정 (Render용)
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`🚀 서버 실행 중 (포트: ${PORT})`);
 });
