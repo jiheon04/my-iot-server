@@ -6,7 +6,7 @@
 const DEMO_MODE = false;
 
 // 나중에 Node.js 서버 만들면 여기만 맞게 수정하면 됨
-const API_BASE = "";
+const API_BASE = "";   
 
 /* =========================================================
  *  2. Chart.js로 라인 그래프 기본 세팅
@@ -173,7 +173,7 @@ function updateUIWithSample(sample) {
   const ss = String(d.getSeconds()).padStart(2, '0');
   const timeLabel = `${hh}:${mm}`;
 
-  document.getElementById('lastUpdated').textContent =
+  document.getElementById('lastUpdatedTop').textContent =
     `마지막 업데이트: ${hh}:${mm}:${ss}`;
   document.getElementById('statDistance').textContent =
     sample.distanceCm ? sample.distanceCm.toFixed(1) : '-';
