@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Habit Chair – 자세 관리 대시보드</title>
+
+  <!-- 그래프 그리려고 Chart.js CDN 사용 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ====== 기본 레이아웃 / 스타일 ====== */
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #020617;   /* 거의 검정에 가까운 남색 */
+      color: #e5e7eb;
+      margin: 0;
+    }
+    header {
+      padding: 14px 20px;
+      background: #020617;
+      border-bottom: 1px solid #1f2937;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+    header p {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .container {
+      max-width: 1120px;
+      margin: 18px auto 40px;
+      padding: 0 18px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: #020617;
+      border-radius: 14px;
+      padding: 14px 16px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+    }
+    .card h2 {
+      font-size: 15px;
+      margin: 0 0 8px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sub {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+    }
+    .status-good {
+      background: rgba(34,197,94,0.16);
+      color: #bbf7d0;
+    }
+    .status-bad {
+      background: rgba(239,68,68,0.16);
+      color: #fecaca;
+    }
+    .status-absent {
+      background: rgba(59,130,246,0.16);
+      color: #bfdbfe;
+    }
+    .status-dot.good { background:#22c55e; }
+    .status-dot.bad  { background:#ef4444; }
+    .status-dot.absent { background:#3b82f6; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .stat {
+      background:#020617;
+      border-radius: 10px;
+      border:1px solid #111827;
+      padding: 8px 10px;
+    }
+    .stat-label {
+      font-size:11px;
+      color:#9ca3af;
+      margin-bottom:4px;
+    }
+    .stat-value {
+      font-size:18px;
+      font-weight:600;
+    }
+    .stat-unit {
+      font-size:11px;
+      color:#6b7280;
+      margin-left:4px;
+    }
+    .stat-sub {
+      font-size:11px;
+      color:#6b7280;
+      margin-top:4px;
+    }
+
+    .controls {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      font-size:11px;
+      color:#9ca3af;
+    }
+    .btn {
+      border-radius:999px;
+      border:1px solid #374151;
+      background:#020617;
+      color:#e5e7eb;
+      font-size:11px;
+      padding:5px 10px;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+    }
+    .btn:hover {
+      background:#111827;
+    }
+    .toggle {
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      cursor:pointer;
+    }
+    .toggle input {
+      accent-color:#22c55e;
+    }
+
+    .field-group {
+      margin-top:8px;
+    }
+    .field-group label {
+      font-size:11px;
+      color:#9ca3af;
+      display:block;
+      margin-bottom:2px;
+    }
+    .field-row {
+      display:flex;
+      gap:6px;
+      align-items:center;
+    }
+    input[type="text"], input[type="number"] {
+      background:#020617;
+      border-radius:999px;
+      border:1px solid #374151;
+      color:#e5e7eb;
+      padding:4px 8px;
+      font-size:11px;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+    }
+    th, td {
+      padding:6px 8px;
+      border-bottom:1px solid #111827;
+      text-align:left;
+      white-space:nowrap;
+    }
+    th {
+      color:#9ca3af;
+      font-weight:500;
+      font-size:11px;
+    }
+    tbody tr:nth-child(even) {
+      background:rgba(15,23,42,0.4);
+    }
+
+    .pill {
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      display:inline-block;
+    }
+    .pill-good { background:rgba(34,197,94,0.2); color:#bbf7d0; }
+    .pill-bad  { background:rgba(239,68,68,0.2); color:#fecaca; }
+    .pill-absent { background:rgba(59,130,246,0.2); color:#bfdbfe; }
+
+    .small {
+      font-size:11px;
+      color:#9ca3af;
+      margin-top:6px;
+    }
+
+    @media (max-width:900px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+      .stat-grid {
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========== 헤더 ========== -->
+<header>
+  <div>
+    <h1>Smart Habit Chair – 자세 관리 대시보드</h1>
+    <p>실시간 자세 감지 · BAD 습관 분석 · 웹 시각화</p>
+  </div>
+  <div class="controls">
+    <label class="toggle">
+      <!-- 자동 새로고침 On/Off 체크박스 -->
+      <input type="checkbox" id="autoRefresh" checked>
+      <span>실시간 자동 업데이트</span>
+    </label>
+    <button class="btn" onclick="manualRefresh()">⟳ 지금 새로고침</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ========== 상단 2컬럼 레이아웃 ========== -->
+  <div class="grid-2">
+    <!-- 왼쪽: 현재 상태 + 사용자 설정 + 피드백 -->
+    <div class="card">
+      <h2>
+        현재 자세 상태
+        <span id="lastUpdated" class="sub">마지막 업데이트: -</span>
+      </h2>
+
+      <!-- 상태 뱃지 -->
+      <div id="statusBadge" class="status-badge status-absent">
+        <span id="statusDot" class="status-dot absent"></span>
+        <span id="statusText">ABSENT (자리 비움)</span>
+      </div>
+
+      <!-- 거리 / 압력 / 조도 -->
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-label">상체–센서 거리</div>
+          <div class="stat-value">
+            <span id="statDistance">-</span>
+            <span class="stat-unit">cm</span>
+          </div>
+          <div class="stat-sub">DIST_THRESHOLD = 35cm 기준</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">압력 센서 값</div>
+          <div class="stat-value">
+            <span id="statSeat">-</span>
+          </div>
+          <div class="stat-sub">SEAT_THRESHOLD = 100 이상이면 착석</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">조도 센서 값</div>
+          <div class="stat-value">
+            <span id="statLdr">-</span>
+          </div>
+          <div class="stat-sub">값이 낮을수록 어두운 환경</div>
+        </div>
+      </div>
+
+      <!-- BAD 통계 + 점수 -->
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-label">오늘 BAD 경고 횟수</div>
+          <div class="stat-value">
+            <span id="statBadCount">0</span>
+            <span class="stat-unit">회</span>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">오늘 BAD 누적 시간</div>
+          <div class="stat-value">
+            <span id="statBadMinutes">0</span>
+            <span class="stat-unit">분</span>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">오늘 자세 점수</div>
+          <div class="stat-value">
+            <span id="statScore">0</span>
+            <span class="stat-unit">/ 100</span>
+          </div>
+          <div class="stat-sub">GOOD 비율 기반</div>
+        </div>
+      </div>
+
+      <!-- 자세 피드백 -->
+      <div class="field-group">
+        <label>자세 피드백</label>
+        <p id="feedbackMessage" class="small">
+          아직 피드백이 없습니다. 자세 데이터를 기다리는 중...
+        </p>
+      </div>
+
+      <!-- 사용자 설정 (닉네임, 목표 GOOD 비율) -->
+      <div class="field-group">
+        <label>닉네임 / 의자 이름</label>
+        <div class="field-row">
+          <input type="text" id="inputNickname" placeholder="예: 지헌이 공부 의자">
+          <button class="btn" onclick="saveSettings()">저장</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>하루 목표 GOOD 비율 (%)</label>
+        <div class="field-row">
+          <input type="number" id="inputGoal" min="50" max="100" step="5" style="width:80px;">
+          <span class="sub" id="goalInfo"></span>
+        </div>
+      </div>
+
+      <p class="small" id="settingsInfo">
+        설정은 이 브라우저의 localStorage에 저장됩니다. (서버 없어도 저장 가능)
+      </p>
+    </div>
+
+    <!-- 오른쪽: 오늘 자세 그래프 -->
+    <div class="card">
+      <h2>
+        오늘 자세 변화
+        <span class="sub">0=GOOD · 1=BAD · 2=ABSENT</span>
+      </h2>
+      <canvas id="postureChart" height="140"></canvas>
+      <p class="small">
+        시간대별 자세 상태를 확인할 수 있습니다. BAD 구간이 길수록 잘못된 자세로 앉아 있었던 시간이 길다는 의미입니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- ========== 하단: 로그 테이블 ========== -->
+  <div class="card">
+    <h2>최근 측정 로그 (마지막 10개)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>시간</th>
+          <th>자세</th>
+          <th>거리(cm)</th>
+          <th>압력</th>
+          <th>조도</th>
+        </tr>
+      </thead>
+      <tbody id="logTableBody">
+        <!-- JS에서 채움 -->
+      </tbody>
+    </table>
+    <p class="small">
+      실제 서비스에서는 이 로그가 아두이노 → ESP8266 → 서버에 저장된 데이터를 기반으로 채워집니다.
+      지금은 개발 편의를 위해 브라우저에서 DEMO 데이터를 생성합니다.
+    </p>
+  </div>
+</div>
+
+<!-- 🔹 분리한 JS 파일 로드 -->
+<script src="app.js"></script>
+</body>
+</html>
