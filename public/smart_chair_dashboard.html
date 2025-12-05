@@ -376,11 +376,11 @@
 
     <div class="card">
       <span class="mode-badge" id="modeBadge">
-        🔁 현재: DEMO 모드 (가짜 데이터)
+        📡 LIVE 모드 (실제 IoT 데이터 수신 중)
       </span>
       <p class="small">
-        실제 IoT 연동 시에는 아두이노 + ESP8266이 서버로 전송한 실시간 데이터를 보여주게 됩니다.
-        지금은 화면 구조와 UX를 확인하기 위한 DEMO 데이터가 자동으로 생성됩니다.
+        아두이노 + ESP8266에서 측정한 센서 데이터가 서버(Render)의 API로 전송되고,
+        이 대시보드는 <code>/api/latest</code> 엔드포인트를 통해 최신 데이터를 불러와서 보여줍니다.
       </p>
       <p class="small" id="lastUpdatedTop">마지막 업데이트: -</p>
     </div>
@@ -584,7 +584,7 @@
     <table>
       <thead>
       <tr>
-        <th>시간</th>    
+        <th>시간</th>
         <th>자세</th>
         <th>거리(cm)</th>
         <th>압력</th>
@@ -596,8 +596,8 @@
       </tbody>
     </table>
     <p class="small">
-      실제 서비스에서는 이 로그가 아두이노 → ESP8266 → 서버에 저장된 데이터를 기반으로 채워집니다.    
-      지금은 개발 편의를 위해 브라우저에서 DEMO 데이터를 생성합니다.
+      실제 서비스에서는 이 로그가 아두이노 → ESP8266 → 서버에 저장된 데이터를 기반으로 채워집니다.
+      현재 버전에서는 서버의 <code>/api/latest</code> 응답을 기준으로 최근 10개 기록을 화면에 표시합니다.
     </p>
   </section>
 
