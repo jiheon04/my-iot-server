@@ -2,10 +2,10 @@
  *  1. 모드 설정: DEMO vs 실제 서버
  * ========================================================= */
 
-// true = 서버 없이 가짜 데이터 사용 (지금은 이 모드)
+// true = 서버 없이 가짜 데이터 사용
 const DEMO_MODE = false;
 
-// 나중에 Node.js 서버 만들면 여기만 맞게 수정하면 됨
+// Render에 올린 Node 서버 기준으로 같은 도메인 사용
 const API_BASE = "";   
 
 /* =========================================================
@@ -42,6 +42,28 @@ const postureChart = new Chart(postureCtx, {
     },
     plugins: {
       legend: { display: false }
+    }
+  }
+});
+
+/* =========================================================
+ *  2-1. 오늘 비율 도넛 그래프 기본 세팅
+ * ========================================================= */
+
+const ratioCtx = document.getElementById('ratioChart').getContext('2d');
+const ratioChart = new Chart(ratioCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['GOOD', 'BAD', 'ABSENT'],
+    datasets: [{
+      data: [0, 0, 0],   // GOOD, BAD, ABSENT 개수
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: true }
     }
   }
 });
@@ -165,6 +187,17 @@ function generateFeedback(sample) {
 // GOOD/BAD 비율 계산용으로 log 전체를 메모리에 저장
 const history = [];
 
+function calcGoodRate(arr) {
+  if (arr.length === 0) return 0;
+  const good = arr.filter(s => s.postureState === 0).length;
+  return Math.round((good / arr.length) * 100);
+}
+function calcBadRate(arr) {
+  if (arr.length === 0) return 0;
+  const bad = arr.filter(s => s.postureState === 1).length;
+  return Math.round((bad / arr.length) * 100);
+}
+
 function updateUIWithSample(sample) {
   // 시간 파싱
   const d = new Date(sample.timestamp);
@@ -193,12 +226,48 @@ function updateUIWithSample(sample) {
   history.push(sample);
   if (history.length > 500) history.shift(); // 너무 길어지면 앞부분 제거
 
-  // 오늘 GOOD/BAD 비율 → 점수 계산
-  const goodRate = calcGoodRate(history);
-  const badRate  = calcBadRate(history);
-  const score = Math.round(goodRate); // 간단하게 GOOD%를 점수로 사용
+  // ====== 비율/점수/도넛 업데이트 ======
+  const total = history.length;
+  const goodCount   = history.filter(s => s.postureState === 0).length;
+  const badCount    = history.filter(s => s.postureState === 1).length;
+  const absentCount = total - goodCount - badCount;
 
-  document.getElementById('statScore').textContent = score;
+  const goodRate   = calcGoodRate(history);
+  const badRate    = calcBadRate(history);
+  const absentRate = total === 0 ? 0 : Math.round((absentCount / total) * 100);
+
+  // 상단 요약 숫자
+  document.getElementById('summaryGoodRate').textContent   = goodRate;
+  document.getElementById('summaryBadRate').textContent    = badRate;
+  document.getElementById('summaryAbsentRate').textContent = absentRate;
+
+  // 점수 = GOOD% 로 간단히 사용
+  document.getElementById('summaryScore').textContent = goodRate;
+  document.getElementById('statScore').textContent    = goodRate;
+
+  // 착석 시간(대충 GOOD/BAD 샘플 수 * 5초 기준)
+  const seatSamples = history.filter(s => s.postureState === 0 || s.postureState === 1).length;
+  const seatMinutes = (seatSamples * 5) / 60; // 자동 새로고침 5초 기준
+  document.getElementById('summarySeatMinutes').textContent = seatMinutes.toFixed(1);
+
+  // BAD 연속 시간(대충 history에서 연속 BAD 최대 길이 * 5초)
+  let maxBadStreak = 0;
+  let curBadStreak = 0;
+  for (const s of history) {
+    if (s.postureState === 1) {
+      curBadStreak += 1;
+      if (curBadStreak > maxBadStreak) maxBadStreak = curBadStreak;
+    } else {
+      curBadStreak = 0;
+    }
+  }
+  const maxBadSec = maxBadStreak * 5;
+  document.getElementById('summaryBadStreak').textContent = maxBadSec;
+
+  // 도넛 차트 데이터 갱신
+  ratioChart.data.datasets[0].data = [goodCount, badCount, absentCount];
+  ratioChart.update();
+  // ====== 비율/점수/도넛 업데이트 끝 ======
 
   // 목표 GOOD 비율 있으면 안내 문구 업데이트
   updateGoalInfo(goodRate);
@@ -207,7 +276,7 @@ function updateUIWithSample(sample) {
   const feedback = generateFeedback(sample);
   document.getElementById('feedbackMessage').textContent = feedback;
 
-  // 그래프에 점 추가
+  // 그래프에 점 추가 (라인 차트)
   const labels = postureChart.data.labels;
   const data = postureChart.data.datasets[0].data;
   labels.push(timeLabel);
@@ -232,17 +301,6 @@ function updateUIWithSample(sample) {
   while (tbody.children.length > 10) {
     tbody.removeChild(tbody.lastChild);
   }
-}
-
-function calcGoodRate(arr) {
-  if (arr.length === 0) return 0;
-  const good = arr.filter(s => s.postureState === 0).length;
-  return Math.round((good / arr.length) * 100);
-}
-function calcBadRate(arr) {
-  if (arr.length === 0) return 0;
-  const bad = arr.filter(s => s.postureState === 1).length;
-  return Math.round((bad / arr.length) * 100);
 }
 
 /* =========================================================
