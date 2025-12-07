@@ -57,6 +57,12 @@ const ratioChart = new Chart(ratioCtx, {
     labels: ['GOOD', 'BAD', 'ABSENT'],
     datasets: [{
       data: [0, 0, 0],   // GOOD, BAD, ABSENT 개수
+      backgroundColor: [
+        '#22c55e', // GOOD → 초록
+        '#ef4444', // BAD  → 빨강
+        '#3b82f6'  // ABSENT → 파랑
+      ],
+      borderColor: '#020617',
       borderWidth: 1
     }]
   },
@@ -67,6 +73,7 @@ const ratioChart = new Chart(ratioCtx, {
     }
   }
 });
+
 
 /* =========================================================
  *  3. 상태 뱃지 / DOM 업데이트용 함수들
